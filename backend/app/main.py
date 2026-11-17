@@ -9,7 +9,8 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
-from app.database.connection import engine, check_db_connection
+from app.database.connection import engine, check_db_connection, has_ssl
+from app.database.seeder import seed_database_if_empty
 from app.database.base import Base
 import app.models  # noqa: F401 - register all SQLAlchemy models
 
@@ -35,7 +36,8 @@ async def lifespan(app: FastAPI):
     print("====================================================")
     print("🌾 [AgriSmart] Starting Python FastAPI Backend Server")
     print(f"🌐 Host: {settings.HOST}:{settings.PORT}")
-    print(f"🗄️  Database: {settings.DB_NAME}")
+    print(f"🗄️  Database: {settings.effective_db_name} on {settings.effective_db_host}:{settings.effective_db_port}")
+    print(f"🔒 TLS / SSL: {'Enabled' if has_ssl else 'Disabled'}")
     print(f"📜 Swagger Docs: http://127.0.0.1:{settings.PORT}/docs")
     print("====================================================")
 
@@ -45,9 +47,13 @@ async def lifespan(app: FastAPI):
         print(f"⚠️ [Database] Schema check notice: {e}")
 
     if check_db_connection():
-        print(f"✅ [MySQL] Connected successfully to database: {settings.DB_NAME}")
+        print(f"✅ [MySQL] Connected successfully to database: {settings.effective_db_name} ({settings.effective_db_host}:{settings.effective_db_port})")
+        try:
+            seed_database_if_empty()
+        except Exception as se:
+            print(f"⚠️ [Database] Seed notice: {se}")
     else:
-        print("⚠️ [MySQL] Warning: Could not verify MySQL connection at startup.")
+        print(f"⚠️ [MySQL] Warning: Could not verify connection to database at {settings.effective_db_host}:{settings.effective_db_port}.")
 
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     yield
@@ -140,6 +146,11 @@ def root():
     }
 
 
+@app.head("/", include_in_schema=False)
+def root_head():
+    return JSONResponse(status_code=status.HTTP_200_OK, content={})
+
+
 @app.get("/health", tags=["Health"])
 @app.get("/api/health", tags=["Health"])
 def health_check():
@@ -153,8 +164,27 @@ def health_check():
         "uptime": f"{uptime}s",
         "database": {
             "type": "MySQL 8.0",
-            "name": settings.DB_NAME,
+            "host": settings.effective_db_host,
+            "port": settings.effective_db_port,
+            "name": settings.effective_db_name,
             "connected": db_connected,
-            "tls_enabled": bool(settings.DB_SSL_CA),
+            "tls_enabled": bool(has_ssl),
         },
     }
+
+
+@app.head("/health", include_in_schema=False)
+@app.head("/api/health", include_in_schema=False)
+def health_check_head():
+    return JSONResponse(status_code=status.HTTP_200_OK, content={})
+
+
+@app.post("/api/seed", tags=["Admin"])
+def trigger_seed():
+    seeded = seed_database_if_empty()
+    return {
+        "success": True,
+        "seeded": seeded,
+        "message": "Seed data populated successfully." if seeded else "Database already populated.",
+    }
+

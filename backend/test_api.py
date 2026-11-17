@@ -24,9 +24,17 @@ def test_suite():
     assert r.status_code == 200, f"Root endpoint failed: {r.text}"
     print(" -> GET /: OK (Service online)")
 
+    r = client.head("/")
+    assert r.status_code == 200, f"Root HEAD endpoint failed: {r.status_code}"
+    print(" -> HEAD /: OK (Health probe ready)")
+
     r = client.get("/health")
     assert r.status_code == 200, f"Health check failed: {r.text}"
     print(" -> GET /health: OK (Database connected)")
+
+    r = client.head("/health")
+    assert r.status_code == 200, f"Health check HEAD failed: {r.status_code}"
+    print(" -> HEAD /health: OK (Probe ready)")
 
     r = client.get("/api/health")
     assert r.status_code == 200, f"API Health check failed: {r.text}"
