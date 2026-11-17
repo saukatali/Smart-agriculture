@@ -20,8 +20,16 @@ def test_suite():
 
     # 1. Health & Docs
     print("\n[1/7] Testing Health & Documentation Endpoints...")
-    r = client.get("/api/health")
+    r = client.get("/")
+    assert r.status_code == 200, f"Root endpoint failed: {r.text}"
+    print(" -> GET /: OK (Service online)")
+
+    r = client.get("/health")
     assert r.status_code == 200, f"Health check failed: {r.text}"
+    print(" -> GET /health: OK (Database connected)")
+
+    r = client.get("/api/health")
+    assert r.status_code == 200, f"API Health check failed: {r.text}"
     print(" -> GET /api/health: OK (Database connected)")
 
     r = client.get("/openapi.json")

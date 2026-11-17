@@ -50,4 +50,6 @@ class Settings(BaseSettings):
 
 settings = Settings()
 if not settings.SECRET_KEY:
-    raise RuntimeError("JWT_SECRET environment variable must be configured in backend/.env")
+    raise RuntimeError(
+        "JWT_SECRET environment variable must be configured in environment or backend/.env"
+    )

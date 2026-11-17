@@ -1,3 +1,5 @@
+import os
+import logging
 from typing import Generator
 
 from sqlalchemy import create_engine, text
@@ -5,11 +7,19 @@ from sqlalchemy.orm import sessionmaker, Session
 
 from app.core.config import settings
 
+logger = logging.getLogger("uvicorn.error")
+
 ssl_args = {}
 
 if settings.DB_SSL_CA:
+    ca_path = os.path.abspath(settings.DB_SSL_CA) if not os.path.isabs(settings.DB_SSL_CA) else settings.DB_SSL_CA
+    if not os.path.exists(ca_path):
+        raise FileNotFoundError(
+            f"Configured DB_SSL_CA certificate file was not found at: {ca_path}. "
+            "Please ensure the CA certificate is uploaded (e.g., as a Render Secret File)."
+        )
     ssl_args = {
-        "ssl_ca": settings.DB_SSL_CA,
+        "ssl_ca": ca_path,
         "ssl_verify_cert": True,
         "ssl_verify_identity": True,
     }
@@ -45,5 +55,5 @@ def check_db_connection() -> bool:
             conn.execute(text("SELECT 1"))
         return True
     except Exception as e:
-        print(f"MySQL connection check failed: {e}")
+        print(f"⚠️ [Database] Connection check failed: {e}")
         return False

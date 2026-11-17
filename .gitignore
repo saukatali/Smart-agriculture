@@ -53,6 +53,9 @@ app.*.map.json
 backend/.env
 backend/.env.*
 !backend/.env.example
+*.pem
+*.crt
+*.key
 backend/.venv/
 **/.venv/
 **/__pycache__/

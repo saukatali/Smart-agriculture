@@ -39,7 +39,11 @@ async def lifespan(app: FastAPI):
     print(f"📜 Swagger Docs: http://127.0.0.1:{settings.PORT}/docs")
     print("====================================================")
 
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"⚠️ [Database] Schema check notice: {e}")
+
     if check_db_connection():
         print(f"✅ [MySQL] Connected successfully to database: {settings.DB_NAME}")
     else:
@@ -125,6 +129,18 @@ app.include_router(admin.router)
 app.include_router(insights.router)
 
 
+@app.get("/", tags=["Root"])
+def root():
+    return {
+        "service": "AgriSmart API",
+        "status": "online",
+        "version": "1.0.0",
+        "documentation": "/docs",
+        "health": "/health",
+    }
+
+
+@app.get("/health", tags=["Health"])
 @app.get("/api/health", tags=["Health"])
 def health_check():
     db_connected = check_db_connection()
@@ -139,5 +155,6 @@ def health_check():
             "type": "MySQL 8.0",
             "name": settings.DB_NAME,
             "connected": db_connected,
+            "tls_enabled": bool(settings.DB_SSL_CA),
         },
     }
